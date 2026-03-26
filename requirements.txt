@@ -1,9 +1,9 @@
-google-adk[database,eval]
+google-adk[database,eval]>=1.10.0,<2.0.0
+google-cloud-aiplatform[adk,agent-engines]>=1.130.0,<2.0.0
 yfinance
 psutil
 litellm>=1.75.5
 python-dotenv>=1.0.0
-Deprecated
 pytest>=8.3.4
 fastmcp>=2.3.4
 uvicorn>=0.34.0

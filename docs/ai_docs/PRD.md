@@ -1,227 +1,354 @@
 Read the AGENTS.md
 
-build a production-grade RAG AI agent system using Google ADK and Google Vertex AI RAG engine.
+# PRD: Vertex AI RAG Agent with Google ADK
 
-Follow ALL constraints defined in AGENTS.md. Do not override them.
+## 1. Objective
 
---------------------------------------------------
-1. PRIMARY IMPLEMENTATION PRINCIPLES
---------------------------------------------------
+Build a production-grade RAG agent using Google ADK and Vertex AI that can:
 
-- Strictly follow AGENTS.md as the source of truth
-- Reuse ADK components wherever possible
-- Do NOT create custom abstractions if ADK provides them
-- Explicitly use:
-  - google.adk.agents.Agent
-  - google.adk.tools
-  - vertexai.rag APIs
+- create and manage Vertex AI RAG corpora
+- ingest documents from supported Google-managed sources
+- retrieve context with Vertex AI RAG
+- keep an active corpus in session state
+- run locally with `adk web`
+- deploy programmatically to Vertex Agent Engine
 
-Before writing code:
-- Identify which ADK components are reused
-- Avoid duplicating functionality already provided by ADK
+This PRD is binding for the current implementation and must stay aligned with
+`AGENTS.md`.
 
---------------------------------------------------
-2. SYSTEM GOAL
---------------------------------------------------
+## 2. Primary Implementation Rules
 
-Build a RAG-enabled agent that can:
+- Reuse ADK and Vertex AI SDK components before writing new code.
+- Do not introduce custom abstractions when ADK or `vertexai.rag` already
+  provides the required behavior.
+- The implementation must explicitly reuse:
+  - `google.adk.agents.Agent`
+  - `google.adk.tools.ToolContext`
+  - `vertexai.rag`
+- The system must remain code-first and environment-driven.
+- All corpus operations must go through tools, not the agent reasoning layer.
 
-- Manage document corpora
-- Ingest documents (Google Drive, Docs, GCS)
-- Perform semantic retrieval using Vertex AI RAG
-- Maintain internal state for active corpus
-- Deploy programmatically to Vertex Agent Engine
+## 3. System Scope
 
---------------------------------------------------
-3. TOOLING (REQUIRED)
---------------------------------------------------
+The system manages the full RAG lifecycle:
 
-Implement tools using ADK tool pattern (no custom wrappers beyond necessity):
+`create -> ingest -> query -> inspect -> delete`
 
-- rag_query
-- list_corpora
-- create_corpus
-- add_data
-- get_corpus_info
-- delete_document
-- delete_corpus
+Supported user tasks:
+
+- list corpora
+- create a corpus
+- import data into the active or named corpus
+- query a corpus semantically
+- inspect corpus contents
+- delete a document with confirmation
+- delete a corpus with confirmation
+
+## 4. Runtime and Platform Baseline
+
+- Framework: Google ADK
+- RAG backend: Vertex AI RAG Engine
+- LLM backend: Vertex AI
+- Local UI: `adk web`
+- Deployment target: Vertex Agent Engine
+- Authentication: Google CLI application default credentials or an equivalent
+  Google Cloud credential chain supported by Vertex AI
+
+The implementation must initialize Vertex AI before any tool usage.
+
+## 5. Environment Configuration
+
+All runtime and deployment configuration must come from `.env`.
+
+Do not introduce a separate settings layer or hardcoded config constants for
+deployment-specific values.
+
+### 5.1 Critical Environment Requirements
+
+- `GOOGLE_GENAI_USE_VERTEXAI` must be truthy so the agent uses Vertex AI for
+  both the LLM and RAG.
+- `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` must be present so Vertex
+  AI can initialize correctly.
+- `DEFAULT_EMBEDDING_MODEL` is critical because a bad value creates unusable
+  corpora.
+- `GOOGLE_CLOUD_STORAGE_BUCKET` is required for deployment flows.
+- Validation must run at startup and fail fast with a clear error message.
+
+## 6. Embedding Model Requirements
+
+Corpus creation must use a valid, current Vertex AI publisher embedding model.
+
+### 6.1 Approved Publisher Models
+
+The implementation must support Google publisher embedding models such as:
+
+- `text-embedding-005`
+- `text-embedding-004`
+- `text-multilingual-embedding-002`
+
+The current default for new corpora is `text-embedding-005`.
+
+### 6.2 Disallowed Retired Models
+
+The implementation must reject retired Gecko embedding models during startup and
+before corpus creation. At minimum, reject:
+
+- `textembedding-gecko@001`
+- `textembedding-gecko@002`
+- `textembedding-gecko@003`
+- `textembedding-gecko-multilingual@001`
+
+### 6.3 Corpus Immutability Rule
+
+The embedding model used when a corpus is created is effectively fixed for that
+corpus lifecycle.
+
+If the embedding model configuration changes:
+
+- existing corpora are not retrofitted automatically
+- a new corpus must be created to use the new embedding model
+- the system must not imply that changing `.env` repairs an already-created
+  corpus
+
+## 7. Tooling Requirements
+
+Implement the following ADK tools:
+
+- `rag_query`
+- `list_corpora`
+- `create_corpus`
+- `add_data`
+- `get_corpus_info`
+- `delete_document`
+- `delete_corpus`
+
+### 7.1 Shared Tool Rules
+
+- Tools must call `vertexai.rag` directly.
+- Tools must return structured responses:
+  - `{ "status": ..., "message": ..., "data": ... }`
+- Inputs must be validated strictly.
+- Errors must be explicit and actionable.
+- User-facing responses must not expose internal corpus resource names.
+
+### 7.2 `create_corpus`
 
 Requirements:
 
-- Use vertexai.rag directly
-- Return structured outputs: {status, message, data}
-- Validate all inputs
-- Handle errors explicitly (no silent failures)
+- If a corpus with the same display name already exists, reuse it as the active
+  corpus instead of creating a duplicate.
+- New corpora must be created with `vertexai.rag.RagVectorDbConfig`.
+- New corpora must use the configured approved embedding model.
+- If the embedding model is retired or invalid, corpus creation must fail
+  clearly.
 
-Reuse:
-- Prefer existing ADK tool patterns
-- Do NOT create new tool base classes
+### 7.3 `add_data`
 
---------------------------------------------------
-4. STATE MANAGEMENT
---------------------------------------------------
+Requirements:
 
-Use ADK ToolContext / session.state:
+- Support only:
+  - Google Cloud Storage paths
+  - Google Drive URLs
+  - Google Docs URLs
+- Normalize supported Cloud Storage HTTPS URLs into `gs://...` form.
+- Normalize Google Docs URLs into the equivalent Google Drive file URL before
+  ingestion.
+- Reject empty paths.
+- Reject unsupported source formats.
+- Use the selected corpus or the current active corpus.
+- Report:
+  - imported count
+  - failed count
+  - skipped count
+  - normalized paths
+  - partial failures path when Vertex AI provides one
 
-Track:
-- current_corpus
-- corpus_exists_<name>
+Operational rule:
+
+- A failed corpus import does not necessarily indicate a connectivity issue.
+  Corpus configuration, source access, and source format must all be considered.
+
+### 7.4 `rag_query`
+
+Requirements:
+
+- Use the selected corpus or active corpus.
+- Use configurable `top_k`.
+- Apply configurable distance-threshold filtering.
+- Return retrieved contexts with:
+  - document display name
+  - matched text
+  - distance
+
+### 7.5 `get_corpus_info`
+
+Requirements:
+
+- Return corpus summary information.
+- Return numbered documents for follow-up operations.
+- The numbered list must be suitable for delete disambiguation.
+
+### 7.6 Delete Tools
+
+Requirements:
+
+- `delete_document` must require `confirm=True`.
+- `delete_corpus` must require `confirm=True`.
+- The implementation must never delete when confirmation is absent or false.
+
+## 8. Ingestion and Attachment Rules
+
+### 8.1 Supported User Inputs
+
+The agent may ingest content only from supported paths that the tool can
+normalize:
+
+- `gs://bucket/path`
+- `https://storage.googleapis.com/bucket/path`
+- `https://<bucket>.storage.googleapis.com/path`
+- `https://drive.google.com/...`
+- `https://docs.google.com/document/...`
+
+### 8.2 Unsupported Inputs
+
+Direct inline chat attachments are not a supported ingestion source for this
+agent.
+
+If the user uploads a chat attachment instead of providing a supported path, the
+agent must explain that they need to provide a Google Drive URL, Google Docs
+URL, or `gs://` path.
+
+### 8.3 Routing Rule
+
+If the latest user message contains supported ingestion paths and the request
+looks like an ingestion action, the system should route directly to `add_data`
+instead of asking the user to reformat already-supported paths.
+
+## 9. State Management
+
+Use ADK `ToolContext` and `session.state`.
+
+The system must track:
+
+- `current_corpus`
+- `current_corpus_resource`
+- `corpus_exists_<slug>`
+- `corpus_resource_<slug>`
 
 Rules:
-- Automatically set current corpus when created/used
-- Allow fallback to current corpus if not provided
-- Never expose internal resource names to users
 
---------------------------------------------------
-5. AGENT IMPLEMENTATION
---------------------------------------------------
+- creating or resolving a corpus must set it as current
+- corpus-specific operations may fall back to the current corpus
+- internal resource names must stay internal
+- state must remain simple and serializable
 
-Use:
+## 10. Agent Behavior Requirements
 
-google.adk.agents.Agent
+Use `google.adk.agents.Agent` for the root agent.
 
-The agent must:
+The instruction block must include:
 
-- Use tools for ALL external operations
-- Never directly call APIs from reasoning layer
-- Route user requests correctly to tools
+- role
+- skills
+- decision logic
+- tool rules
+- safety rules
+- communication guidelines
+- internal rules
 
---------------------------------------------------
-6. AGENT INSTRUCTION (MANDATORY)
---------------------------------------------------
+### 10.1 Mandatory Behavior
 
-Define a clear instruction block inside the Agent.
+- knowledge questions must use `rag_query`
+- corpus-management actions must use the matching tool
+- the agent must determine the target corpus before corpus-specific work
+- the agent must mention which corpus it used
+- the agent must explain actions after tool calls
+- the agent must not invent backend causes that the tool did not return
 
-The instruction must enforce:
+## 11. Local Execution Requirements
 
-### Role
-- RAG agent for corpus management + retrieval
+The system must support local execution through:
 
-### Skills
-- Query documents (rag_query)
-- Manage corpora (create/list/add/info/delete)
-
-### Decision Logic
-- If user asks a question → use rag_query
-- If user manages data → use corresponding tool
-- Always identify corpus before operations
-
-### Tool Rules
-- Use current corpus if not specified
-- Prefer internal resource names when available
-
-### Safety
-- Require confirmation before:
-  - delete_document
-  - delete_corpus
-
-### Communication
-- Clearly explain actions taken
-- Mention corpus used
-- Provide actionable error messages
-
-Do NOT:
-- Expose internal system details
-- Skip confirmation for destructive actions
-
---------------------------------------------------
-7. CONFIGURATION
---------------------------------------------------
-
-All configuration must be centralized.
-
-- Load from .env using dotenv
-- No hardcoded values
-
-Include:
-- project_id
-- location
-- LLM model
-- embedding model
-- chunking config
-- retrieval config
-
-All modules must import from config
-
---------------------------------------------------
-8. LOCAL EXECUTION
---------------------------------------------------
-
-Ensure compatibility with:
-
+```bash
 adk web
+```
+
+Startup flow:
+
+1. load `.env`
+2. validate runtime environment
+3. initialize Vertex AI
+4. construct the root agent
+5. serve through ADK Web
+
+## 12. Deployment Requirements
 
 Provide:
-- entrypoint to run agent locally
 
-Local flow:
-- Load config
-- Initialize Vertex AI
-- Start agent
+- `deployment/deploy.py`
+- `deployment/invoke.py`
+- `deployment/requirements.txt`
+- `deployment/README.md`
 
---------------------------------------------------
-9. DEPLOYMENT (CRITICAL)
---------------------------------------------------
+Deployment flow:
 
-Implement deployment script:
-
-deployment/deploy.py
-
-Requirements:
-
-- Fully automated deployment to Vertex Agent Engine
-- No manual UI steps
-- Must run via:
-
-  python deployment/deploy.py
-
-Flow:
-
-1. Load config
-2. Validate environment
-3. Initialize Vertex AI
-4. Package agent
-5. Deploy to Agent Engine
-6. Print deployment details
+1. load `.env`
+2. validate runtime and deployment environment variables
+3. initialize Vertex AI
+4. package the agent
+5. deploy to Vertex Agent Engine
+6. print deployment status and deployed resource details
+7. support a documented invocation path for the deployed agent
 
 Rules:
 
-- Use config values only
-- No hardcoded credentials
-- Include logging + error handling
+- no manual UI deployment steps
+- no hardcoded credentials
+- use environment variables only
+- include logging and explicit error handling
+- package the agent so the deployed runtime can import the same agent module
+  path that exists locally
+- pass only the application runtime variables that the deployed agent actually
+  needs at startup
+- deployment is not considered successful unless the deployed resource can be
+  invoked after creation
 
---------------------------------------------------
-10. CODE QUALITY
---------------------------------------------------
+### 12.1 Invocation Requirements
 
-- Follow AGENTS.md style rules
-- Use clear docstrings (why, not what)
-- Keep functions small and focused
-- Avoid duplication
-- Prefer simple solutions over abstraction
+Provide a supported invocation path for the deployed Agent Engine resource.
 
---------------------------------------------------
-11. CONSTRAINTS
---------------------------------------------------
+Requirements:
 
-- MUST follow AGENTS.md rules
-- MUST reuse ADK components
-- MUST use vertexai.rag
-- MUST use tool-based agent design
-- MUST support local + deployed execution
+- the repository must include a documented CLI or SDK-based invocation flow
+- the invocation flow must accept the deployed resource name
+- if no session id is supplied, the invocation flow must create a new session
+  before sending the first message
+- the invocation flow must support reusing a returned session id
+- the invocation flow must stream or print the deployed agent response in a
+  developer-usable form
 
---------------------------------------------------
-12. GOAL
---------------------------------------------------
+## 13. Quality and Safety
 
-Deliver a system where:
+- follow `AGENTS.md` style and architecture constraints
+- keep functions small and focused
+- use clear docstrings that explain intent and rationale
+- avoid duplicate abstractions
+- validate user inputs
+- never expose secrets
+- never expose internal resource names in user-facing output
 
-- Agent runs locally via ADK Web
-- Same codebase deploys via script
-- Full RAG lifecycle works:
+## 14. Acceptance Criteria
 
-  create → ingest → query → inspect → delete
+The final system is acceptable only if all of the following are true:
 
-This must behave as a clean, production-grade ADK agent system.
-
-USe the llm - "Gemma 3 27B". Take API key from config file
+- local testing works through ADK Web
+- a new corpus can be created using a supported embedding model
+- a newly created corpus can ingest supported Google Drive, Docs, or GCS data
+- the active corpus is tracked in session state
+- queries return structured retrieval results
+- document and corpus deletion require explicit confirmation
+- deployment can be performed with one command
+- the deployed Agent Engine resource appears successfully in the target region
+- the deployed agent can answer at least one real request through the supported
+  invocation path
+- retired Gecko embedding models are rejected before they create unusable corpora

@@ -1,0 +1,4 @@
+google-cloud-aiplatform[adk,agent-engines]>=1.130.0,<2.0.0
+google-adk[database,eval]>=1.10.0,<2.0.0
+python-dotenv>=1.0.0
+google-auth>=2.0.0
