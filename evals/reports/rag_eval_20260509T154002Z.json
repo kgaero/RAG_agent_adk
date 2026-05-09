@@ -1,0 +1,304 @@
+{
+  "metadata": {
+    "timestamp_utc": "2026-05-09T15:42:37Z",
+    "agent": "local agents.ragagent.root_agent",
+    "dataset": "/home/kgaer/code/RAG_agent_adk/evals/golden_qna.jsonl",
+    "corpus_name": "rag_eval_prd_20260509153236",
+    "chunk_size": 500,
+    "chunk_overlap": 50,
+    "top_k": 5,
+    "distance_threshold": 0.4,
+    "evaluator": "deterministic local scoring; no judge LLM"
+  },
+  "summary": {
+    "case_count": 12,
+    "passed_count": 2,
+    "pass_rate": 0.16666666666666666,
+    "hit_rate_at_k": 0.3,
+    "recall_at_k": 0.3,
+    "context_precision_at_k": 0.21,
+    "answer_correctness_rate": 0.5833333333333334,
+    "forbidden_terms_pass_rate": 1.0,
+    "behavior_pass_rate": 0.8333333333333334,
+    "latency_seconds_avg": 14.094280116916403,
+    "latency_seconds_max": 24.02809024999806
+  },
+  "results": [
+    {
+      "case_id": "prd-001",
+      "question": "What are the main capabilities the Vertex AI RAG agent must provide?",
+      "expected_behavior": "answer",
+      "answer": "The Vertex AI RAG agent, using the corpus 'rag_eval_prd_20260509153236', provides the following main capabilities:\n\n*   **Corpus Management:** It can create, list, inspect, and delete Vertex AI RAG corpora.\n*   **Data Ingestion:** It can ingest documents from supported Google-managed sources like Google Cloud Storage, Google Drive, and Google Docs.\n*   **Context Retrieval:** It can retrieve relevant context for knowledge-based queries using Vertex AI RAG.\n*   **Lifecycle Management:** It manages the full RAG lifecycle: create, ingest, query, inspect, and delete.\n*   **Tooling:** It includes specific tools for `rag_query`, `list_corpora`, `create_corpus`, `add_data`, `get_corpus_info`, `delete_document`, and `delete_corpus`.\n*   **Session State:** It can keep an active corpus in session state.\n*   **Confirmation for Deletion:** It requires explicit confirmation before deleting documents or corpora.\n*   **Deployment:** It supports local execution and programmatic deployment to Vertex Agent Engine.\n*   **Embedding Models:** It uses valid, current Vertex AI publisher embedding models for corpus creation.",
+      "contexts": [
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "Read the AGENTS.md\n\n# PRD: Vertex AI RAG Agent with Google ADK\n\n## 1. Objective\n\nBuild a production-grade RAG agent using Google ADK and Vertex AI that can:\n\n- create and manage Vertex AI RAG corpora\n- ingest documents from supported Google-managed sources\n- retrieve context with Vertex AI RAG\n- keep an active corpus in session state\n- run locally with `adk web`\n- deploy programmatically to Vertex Agent Engine\n\nThis PRD is binding for the current implementation and must stay aligned with\n`AGENTS.md`.\n\n## 2. Primary Implementation Rules\n\n- Reuse ADK and Vertex AI SDK components before writing new code.\n- Do not introduce custom abstractions when ADK or `vertexai.rag` already\n  provides the required behavior.\n- The implementation must explicitly reuse:\n  - `google.adk.agents.Agent`\n  - `google.adk.tools.ToolContext`\n  - `vertexai.rag`\n- The system must remain code-first and environment-driven.\n- All corpus operations must go through tools, not the agent reasoning layer.\n\n## 3. System Scope\n\nThe system manages the full RAG lifecycle:\n\n`create -> ingest -> query -> inspect -> delete`\n\nSupported user tasks:\n\n- list corpora\n- create a corpus\n- import data into the active or named corpus\n- query a corpus semantically\n- inspect corpus contents\n- delete a document with confirmation\n- delete a corpus with confirmation\n\n## 4. Runtime and Platform Baseline\n\n- Framework: Google ADK\n- RAG backend: Vertex AI RAG Engine\n- LLM backend: Vertex AI\n- Local UI: `adk web`\n- Deployment target: Vertex Agent Engine\n- Authentication: Google CLI application default credentials or an equivalent\n  Google Cloud credential chain supported by Vertex AI\n\nThe implementation must initialize Vertex AI before any tool usage.\n\n## 5. Environment Configuration\n\nAll runtime and deployment configuration must come from `.env`.\n\nDo not introduce a separate settings layer or hardcoded config constants for\ndeployment-specific values.\n\n### 5.1 Critical Environment Requirements\n\n- `GOOGLE_GENAI_USE_VERTEXAI` must be truthy so the agent uses Vertex AI for\n  both the LLM and RAG.",
+          "distance": null
+        },
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "Agent Behavior Requirements\n\nUse `google.adk.agents.Agent` for the root agent.\n\nThe instruction block must include:\n\n- role\n- skills\n- decision logic\n- tool rules\n- safety rules\n- communication guidelines\n- internal rules\n\n### 10.1 Mandatory Behavior\n\n- knowledge questions must use `rag_query`\n- corpus-management actions must use the matching tool\n- the agent must determine the target corpus before corpus-specific work\n- the agent must mention which corpus it used\n- the agent must explain actions after tool calls\n- the agent must not invent backend causes that the tool did not return\n\n## 11. Local Execution Requirements\n\nThe system must support local execution through:\n\n```bash\nadk web\n```\n\nStartup flow:\n\n1. load `.env`\n2. validate runtime environment\n3. initialize Vertex AI\n4. construct the root agent\n5. serve through ADK Web\n\n## 12. Deployment Requirements\n\nProvide:\n\n- `deployment/deploy.py`\n- `deployment/invoke.py`\n- `deployment/requirements.txt`\n- `deployment/README.md`\n\nDeployment flow:\n\n1. load `.env`\n2. validate runtime and deployment environment variables\n3. initialize Vertex AI\n4. package the agent\n5. deploy to Vertex Agent Engine\n6. print deployment status and deployed resource details\n7. support a documented invocation path for the deployed agent\n\nRules:\n\n- no manual UI deployment steps\n- no hardcoded credentials\n- use environment variables only\n- include logging and explicit error handling\n- package the agent so the deployed runtime can import the same agent module\n  path that exists locally\n- pass only the application runtime variables that the deployed agent actually\n  needs at startup\n- deployment is not considered successful unless the deployed resource can be\n  invoked after creation\n\n### 12.1 Invocation Requirements\n\nProvide a supported invocation path for the deployed Agent Engine resource.",
+          "distance": null
+        },
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "### 5.1 Critical Environment Requirements\n\n- `GOOGLE_GENAI_USE_VERTEXAI` must be truthy so the agent uses Vertex AI for\n  both the LLM and RAG.\n- `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` must be present so Vertex\n  AI can initialize correctly.\n- `DEFAULT_EMBEDDING_MODEL` is critical because a bad value creates unusable\n  corpora.\n- `GOOGLE_CLOUD_STORAGE_BUCKET` is required for deployment flows.\n- Validation must run at startup and fail fast with a clear error message.\n\n## 6. Embedding Model Requirements\n\nCorpus creation must use a valid, current Vertex AI publisher embedding model.\n\n### 6.1 Approved Publisher Models\n\nThe implementation must support Google publisher embedding models such as:\n\n- `text-embedding-005`\n- `text-embedding-004`\n- `text-multilingual-embedding-002`\n\nThe current default for new corpora is `text-embedding-005`.\n\n### 6.2 Disallowed Retired Models\n\nThe implementation must reject retired Gecko embedding models during startup and\nbefore corpus creation. At minimum, reject:\n\n- `textembedding-gecko@001`\n- `textembedding-gecko@002`\n- `textembedding-gecko@003`\n- `textembedding-gecko-multilingual@001`\n\n### 6.3 Corpus Immutability Rule\n\nThe embedding model used when a corpus is created is effectively fixed for that\ncorpus lifecycle.\n\nIf the embedding model configuration changes:\n\n- existing corpora are not retrofitted automatically\n- a new corpus must be created to use the new embedding model\n- the system must not imply that changing `.env` repairs an already-created\n  corpus\n\n## 7. Tooling Requirements\n\nImplement the following ADK tools:\n\n- `rag_query`\n- `list_corpora`\n- `create_corpus`\n- `add_data`\n- `get_corpus_info`\n- `delete_document`\n- `delete_corpus`\n\n### 7.1 Shared Tool Rules\n\n- Tools must call `vertexai.rag` directly.\n- Tools must return structured responses:\n  - `{ \"status\": ..., \"message\": ..., \"data\": ... }`\n- Inputs must be validated strictly.",
+          "distance": null
+        },
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "- Tools must return structured responses:\n  - `{ \"status\": ..., \"message\": ..., \"data\": ... }`\n- Inputs must be validated strictly.\n- Errors must be explicit and actionable.\n- User-facing responses must not expose internal corpus resource names.\n\n### 7.2 `create_corpus`\n\nRequirements:\n\n- If a corpus with the same display name already exists, reuse it as the active\n  corpus instead of creating a duplicate.\n- New corpora must be created with `vertexai.rag.RagVectorDbConfig`.\n- New corpora must use the configured approved embedding model.\n- If the embedding model is retired or invalid, corpus creation must fail\n  clearly.\n\n### 7.3 `add_data`\n\nRequirements:\n\n- Support only:\n  - Google Cloud Storage paths\n  - Google Drive URLs\n  - Google Docs URLs\n- Normalize supported Cloud Storage HTTPS URLs into `gs://...` form.\n- Normalize Google Docs URLs into the equivalent Google Drive file URL before\n  ingestion.\n- Reject empty paths.\n- Reject unsupported source formats.\n- Use the selected corpus or the current active corpus.\n- Report:\n  - imported count\n  - failed count\n  - skipped count\n  - normalized paths\n  - partial failures path when Vertex AI provides one\n\nOperational rule:\n\n- A failed corpus import does not necessarily indicate a connectivity issue.\n  Corpus configuration, source access, and source format must all be considered.\n\n### 7.4 `rag_query`\n\nRequirements:\n\n- Use the selected corpus or active corpus.\n- Use configurable `top_k`.\n- Apply configurable distance-threshold filtering.\n- Return retrieved contexts with:\n  - document display name\n  - matched text\n  - distance\n\n### 7.5 `get_corpus_info`\n\nRequirements:\n\n- Return corpus summary information.\n- Return numbered documents for follow-up operations.\n- The numbered list must be suitable for delete disambiguation.\n\n### 7.6 Delete Tools\n\nRequirements:\n\n- `delete_document` must require `confirm=True`.\n- `delete_corpus` must require `confirm=True`.\n- The implementation must never delete when confirmation is absent or false.\n\n## 8.",
+          "distance": null
+        },
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "Requirements:\n\n- the repository must include a documented CLI or SDK-based invocation flow\n- the invocation flow must accept the deployed resource name\n- if no session id is supplied, the invocation flow must create a new session\n  before sending the first message\n- the invocation flow must support reusing a returned session id\n- the invocation flow must stream or print the deployed agent response in a\n  developer-usable form\n\n## 13. Quality and Safety\n\n- follow `AGENTS.md` style and architecture constraints\n- keep functions small and focused\n- use clear docstrings that explain intent and rationale\n- avoid duplicate abstractions\n- validate user inputs\n- never expose secrets\n- never expose internal resource names in user-facing output\n\n## 14. Acceptance Criteria\n\nThe final system is acceptable only if all of the following are true:\n\n- local testing works through ADK Web\n- a new corpus can be created using a supported embedding model\n- a newly created corpus can ingest supported Google Drive, Docs, or GCS data\n- the active corpus is tracked in session state\n- queries return structured retrieval results\n- document and corpus deletion require explicit confirmation\n- deployment can be performed with one command\n- the deployed Agent Engine resource appears successfully in the target region\n- the deployed agent can answer at least one real request through the supported\n  invocation path\n- retired Gecko embedding models are rejected before they create unusable corpora",
+          "distance": null
+        }
+      ],
+      "latency_seconds": 24.02809024999806,
+      "hit_rate_at_k": 1.0,
+      "recall_at_k": 1.0,
+      "context_precision_at_k": 0.6,
+      "answer_correct": false,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "Final answer missed required terms."
+      ]
+    },
+    {
+      "case_id": "prd-002",
+      "question": "Which ADK and Vertex components must the implementation explicitly reuse?",
+      "expected_behavior": "answer",
+      "answer": "The implementation must explicitly reuse the following ADK and Vertex components for the corpus named 'rag_eval_prd_20260509153236':\n\n*   `google.adk.agents.Agent`\n*   `google.adk.tools.ToolContext`\n*   `vertexai.rag`",
+      "contexts": [
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "Read the AGENTS.md\n\n# PRD: Vertex AI RAG Agent with Google ADK\n\n## 1. Objective\n\nBuild a production-grade RAG agent using Google ADK and Vertex AI that can:\n\n- create and manage Vertex AI RAG corpora\n- ingest documents from supported Google-managed sources\n- retrieve context with Vertex AI RAG\n- keep an active corpus in session state\n- run locally with `adk web`\n- deploy programmatically to Vertex Agent Engine\n\nThis PRD is binding for the current implementation and must stay aligned with\n`AGENTS.md`.\n\n## 2. Primary Implementation Rules\n\n- Reuse ADK and Vertex AI SDK components before writing new code.\n- Do not introduce custom abstractions when ADK or `vertexai.rag` already\n  provides the required behavior.\n- The implementation must explicitly reuse:\n  - `google.adk.agents.Agent`\n  - `google.adk.tools.ToolContext`\n  - `vertexai.rag`\n- The system must remain code-first and environment-driven.\n- All corpus operations must go through tools, not the agent reasoning layer.\n\n## 3. System Scope\n\nThe system manages the full RAG lifecycle:\n\n`create -> ingest -> query -> inspect -> delete`\n\nSupported user tasks:\n\n- list corpora\n- create a corpus\n- import data into the active or named corpus\n- query a corpus semantically\n- inspect corpus contents\n- delete a document with confirmation\n- delete a corpus with confirmation\n\n## 4. Runtime and Platform Baseline\n\n- Framework: Google ADK\n- RAG backend: Vertex AI RAG Engine\n- LLM backend: Vertex AI\n- Local UI: `adk web`\n- Deployment target: Vertex Agent Engine\n- Authentication: Google CLI application default credentials or an equivalent\n  Google Cloud credential chain supported by Vertex AI\n\nThe implementation must initialize Vertex AI before any tool usage.\n\n## 5. Environment Configuration\n\nAll runtime and deployment configuration must come from `.env`.\n\nDo not introduce a separate settings layer or hardcoded config constants for\ndeployment-specific values.\n\n### 5.1 Critical Environment Requirements\n\n- `GOOGLE_GENAI_USE_VERTEXAI` must be truthy so the agent uses Vertex AI for\n  both the LLM and RAG.",
+          "distance": null
+        },
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "Agent Behavior Requirements\n\nUse `google.adk.agents.Agent` for the root agent.\n\nThe instruction block must include:\n\n- role\n- skills\n- decision logic\n- tool rules\n- safety rules\n- communication guidelines\n- internal rules\n\n### 10.1 Mandatory Behavior\n\n- knowledge questions must use `rag_query`\n- corpus-management actions must use the matching tool\n- the agent must determine the target corpus before corpus-specific work\n- the agent must mention which corpus it used\n- the agent must explain actions after tool calls\n- the agent must not invent backend causes that the tool did not return\n\n## 11. Local Execution Requirements\n\nThe system must support local execution through:\n\n```bash\nadk web\n```\n\nStartup flow:\n\n1. load `.env`\n2. validate runtime environment\n3. initialize Vertex AI\n4. construct the root agent\n5. serve through ADK Web\n\n## 12. Deployment Requirements\n\nProvide:\n\n- `deployment/deploy.py`\n- `deployment/invoke.py`\n- `deployment/requirements.txt`\n- `deployment/README.md`\n\nDeployment flow:\n\n1. load `.env`\n2. validate runtime and deployment environment variables\n3. initialize Vertex AI\n4. package the agent\n5. deploy to Vertex Agent Engine\n6. print deployment status and deployed resource details\n7. support a documented invocation path for the deployed agent\n\nRules:\n\n- no manual UI deployment steps\n- no hardcoded credentials\n- use environment variables only\n- include logging and explicit error handling\n- package the agent so the deployed runtime can import the same agent module\n  path that exists locally\n- pass only the application runtime variables that the deployed agent actually\n  needs at startup\n- deployment is not considered successful unless the deployed resource can be\n  invoked after creation\n\n### 12.1 Invocation Requirements\n\nProvide a supported invocation path for the deployed Agent Engine resource.",
+          "distance": null
+        },
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "### 5.1 Critical Environment Requirements\n\n- `GOOGLE_GENAI_USE_VERTEXAI` must be truthy so the agent uses Vertex AI for\n  both the LLM and RAG.\n- `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` must be present so Vertex\n  AI can initialize correctly.\n- `DEFAULT_EMBEDDING_MODEL` is critical because a bad value creates unusable\n  corpora.\n- `GOOGLE_CLOUD_STORAGE_BUCKET` is required for deployment flows.\n- Validation must run at startup and fail fast with a clear error message.\n\n## 6. Embedding Model Requirements\n\nCorpus creation must use a valid, current Vertex AI publisher embedding model.\n\n### 6.1 Approved Publisher Models\n\nThe implementation must support Google publisher embedding models such as:\n\n- `text-embedding-005`\n- `text-embedding-004`\n- `text-multilingual-embedding-002`\n\nThe current default for new corpora is `text-embedding-005`.\n\n### 6.2 Disallowed Retired Models\n\nThe implementation must reject retired Gecko embedding models during startup and\nbefore corpus creation. At minimum, reject:\n\n- `textembedding-gecko@001`\n- `textembedding-gecko@002`\n- `textembedding-gecko@003`\n- `textembedding-gecko-multilingual@001`\n\n### 6.3 Corpus Immutability Rule\n\nThe embedding model used when a corpus is created is effectively fixed for that\ncorpus lifecycle.\n\nIf the embedding model configuration changes:\n\n- existing corpora are not retrofitted automatically\n- a new corpus must be created to use the new embedding model\n- the system must not imply that changing `.env` repairs an already-created\n  corpus\n\n## 7. Tooling Requirements\n\nImplement the following ADK tools:\n\n- `rag_query`\n- `list_corpora`\n- `create_corpus`\n- `add_data`\n- `get_corpus_info`\n- `delete_document`\n- `delete_corpus`\n\n### 7.1 Shared Tool Rules\n\n- Tools must call `vertexai.rag` directly.\n- Tools must return structured responses:\n  - `{ \"status\": ..., \"message\": ..., \"data\": ... }`\n- Inputs must be validated strictly.",
+          "distance": null
+        }
+      ],
+      "latency_seconds": 16.718769368999347,
+      "hit_rate_at_k": 1.0,
+      "recall_at_k": 1.0,
+      "context_precision_at_k": 1.0,
+      "answer_correct": true,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "case_id": "prd-003",
+      "question": "What source paths are supported for add_data ingestion?",
+      "expected_behavior": "answer",
+      "answer": "The `add_data` function for corpus `rag_eval_prd_20260509153236` supports ingestion from Google Cloud Storage, Google Drive, and Google Docs paths.",
+      "contexts": [],
+      "latency_seconds": 5.697097582000424,
+      "hit_rate_at_k": 0.0,
+      "recall_at_k": 0.0,
+      "context_precision_at_k": 0.0,
+      "answer_correct": true,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "No expected evidence was retrieved.",
+        "Not all expected evidence spans were retrieved."
+      ]
+    },
+    {
+      "case_id": "prd-004",
+      "question": "How should Google Docs URLs be handled before ingestion?",
+      "expected_behavior": "answer",
+      "answer": "I couldn't find any information about how Google Docs URLs should be handled before ingestion in the corpus `rag_eval_prd_20260509153236`.",
+      "contexts": [],
+      "latency_seconds": 16.78012922000198,
+      "hit_rate_at_k": 0.0,
+      "recall_at_k": 0.0,
+      "context_precision_at_k": 0.0,
+      "answer_correct": false,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "No expected evidence was retrieved.",
+        "Not all expected evidence spans were retrieved.",
+        "Final answer missed required terms."
+      ]
+    },
+    {
+      "case_id": "prd-005",
+      "question": "What information must rag_query return for retrieved contexts?",
+      "expected_behavior": "answer",
+      "answer": "When using the corpus 'rag_eval_prd_20260509153236', the `rag_query` function must return the following information for retrieved contexts:\n\n*   document display name\n*   matched text\n*   distance",
+      "contexts": [
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "- Tools must return structured responses:\n  - `{ \"status\": ..., \"message\": ..., \"data\": ... }`\n- Inputs must be validated strictly.\n- Errors must be explicit and actionable.\n- User-facing responses must not expose internal corpus resource names.\n\n### 7.2 `create_corpus`\n\nRequirements:\n\n- If a corpus with the same display name already exists, reuse it as the active\n  corpus instead of creating a duplicate.\n- New corpora must be created with `vertexai.rag.RagVectorDbConfig`.\n- New corpora must use the configured approved embedding model.\n- If the embedding model is retired or invalid, corpus creation must fail\n  clearly.\n\n### 7.3 `add_data`\n\nRequirements:\n\n- Support only:\n  - Google Cloud Storage paths\n  - Google Drive URLs\n  - Google Docs URLs\n- Normalize supported Cloud Storage HTTPS URLs into `gs://...` form.\n- Normalize Google Docs URLs into the equivalent Google Drive file URL before\n  ingestion.\n- Reject empty paths.\n- Reject unsupported source formats.\n- Use the selected corpus or the current active corpus.\n- Report:\n  - imported count\n  - failed count\n  - skipped count\n  - normalized paths\n  - partial failures path when Vertex AI provides one\n\nOperational rule:\n\n- A failed corpus import does not necessarily indicate a connectivity issue.\n  Corpus configuration, source access, and source format must all be considered.\n\n### 7.4 `rag_query`\n\nRequirements:\n\n- Use the selected corpus or active corpus.\n- Use configurable `top_k`.\n- Apply configurable distance-threshold filtering.\n- Return retrieved contexts with:\n  - document display name\n  - matched text\n  - distance\n\n### 7.5 `get_corpus_info`\n\nRequirements:\n\n- Return corpus summary information.\n- Return numbered documents for follow-up operations.\n- The numbered list must be suitable for delete disambiguation.\n\n### 7.6 Delete Tools\n\nRequirements:\n\n- `delete_document` must require `confirm=True`.\n- `delete_corpus` must require `confirm=True`.\n- The implementation must never delete when confirmation is absent or false.\n\n## 8.",
+          "distance": null
+        },
+        {
+          "document_name": "prd_eval_source_20260509153236.txt",
+          "text": "### 5.1 Critical Environment Requirements\n\n- `GOOGLE_GENAI_USE_VERTEXAI` must be truthy so the agent uses Vertex AI for\n  both the LLM and RAG.\n- `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` must be present so Vertex\n  AI can initialize correctly.\n- `DEFAULT_EMBEDDING_MODEL` is critical because a bad value creates unusable\n  corpora.\n- `GOOGLE_CLOUD_STORAGE_BUCKET` is required for deployment flows.\n- Validation must run at startup and fail fast with a clear error message.\n\n## 6. Embedding Model Requirements\n\nCorpus creation must use a valid, current Vertex AI publisher embedding model.\n\n### 6.1 Approved Publisher Models\n\nThe implementation must support Google publisher embedding models such as:\n\n- `text-embedding-005`\n- `text-embedding-004`\n- `text-multilingual-embedding-002`\n\nThe current default for new corpora is `text-embedding-005`.\n\n### 6.2 Disallowed Retired Models\n\nThe implementation must reject retired Gecko embedding models during startup and\nbefore corpus creation. At minimum, reject:\n\n- `textembedding-gecko@001`\n- `textembedding-gecko@002`\n- `textembedding-gecko@003`\n- `textembedding-gecko-multilingual@001`\n\n### 6.3 Corpus Immutability Rule\n\nThe embedding model used when a corpus is created is effectively fixed for that\ncorpus lifecycle.\n\nIf the embedding model configuration changes:\n\n- existing corpora are not retrofitted automatically\n- a new corpus must be created to use the new embedding model\n- the system must not imply that changing `.env` repairs an already-created\n  corpus\n\n## 7. Tooling Requirements\n\nImplement the following ADK tools:\n\n- `rag_query`\n- `list_corpora`\n- `create_corpus`\n- `add_data`\n- `get_corpus_info`\n- `delete_document`\n- `delete_corpus`\n\n### 7.1 Shared Tool Rules\n\n- Tools must call `vertexai.rag` directly.\n- Tools must return structured responses:\n  - `{ \"status\": ..., \"message\": ..., \"data\": ... }`\n- Inputs must be validated strictly.",
+          "distance": null
+        }
+      ],
+      "latency_seconds": 17.42473162799797,
+      "hit_rate_at_k": 1.0,
+      "recall_at_k": 1.0,
+      "context_precision_at_k": 0.5,
+      "answer_correct": true,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "case_id": "prd-006",
+      "question": "Which session state keys must the RAG agent track?",
+      "expected_behavior": "answer",
+      "answer": "The RAG agent must track `current_corpus` in session state.\n\nI will use the corpus named 'rag_eval_prd_20260509153236' for future operations.",
+      "contexts": [],
+      "latency_seconds": 7.851013314000738,
+      "hit_rate_at_k": 0.0,
+      "recall_at_k": 0.0,
+      "context_precision_at_k": 0.0,
+      "answer_correct": false,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "No expected evidence was retrieved.",
+        "Not all expected evidence spans were retrieved.",
+        "Final answer missed required terms."
+      ]
+    },
+    {
+      "case_id": "prd-007",
+      "question": "What confirmation rule applies to document and corpus deletion?",
+      "expected_behavior": "answer",
+      "answer": "Always require explicit confirmation before deleting a document or a corpus. If `confirm` is `false` or missing, deletion will not be performed. The specified corpus 'rag_eval_prd_20260509153236' is not relevant to this rule.",
+      "contexts": [],
+      "latency_seconds": 5.749651631998859,
+      "hit_rate_at_k": 0.0,
+      "recall_at_k": 0.0,
+      "context_precision_at_k": 0.0,
+      "answer_correct": false,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "No expected evidence was retrieved.",
+        "Not all expected evidence spans were retrieved.",
+        "Final answer missed required terms."
+      ]
+    },
+    {
+      "case_id": "prd-008",
+      "question": "Which retired embedding models must be rejected?",
+      "expected_behavior": "answer",
+      "answer": "I'm sorry, I couldn't find any information about retired embedding models that must be rejected in the corpus 'rag_eval_prd_20260509153236'.",
+      "contexts": [],
+      "latency_seconds": 16.484948172001168,
+      "hit_rate_at_k": 0.0,
+      "recall_at_k": 0.0,
+      "context_precision_at_k": 0.0,
+      "answer_correct": false,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "No expected evidence was retrieved.",
+        "Not all expected evidence spans were retrieved.",
+        "Final answer missed required terms."
+      ]
+    },
+    {
+      "case_id": "prd-009",
+      "question": "What is the required HIPAA audit export format for this agent?",
+      "expected_behavior": "abstain",
+      "answer": "I couldn't find any information about the required HIPAA audit export format in the corpus `rag_eval_prd_20260509153236`.",
+      "contexts": [],
+      "latency_seconds": 16.405835893001495,
+      "hit_rate_at_k": null,
+      "recall_at_k": null,
+      "context_precision_at_k": null,
+      "answer_correct": true,
+      "forbidden_terms_passed": true,
+      "behavior_passed": false,
+      "passed": false,
+      "failure_reasons": [
+        "Expected behavior 'abstain' failed."
+      ]
+    },
+    {
+      "case_id": "prd-010",
+      "question": "Which Slack channel should receive failed ingestion alerts?",
+      "expected_behavior": "abstain",
+      "answer": "I couldn't find any information about which Slack channel should receive failed ingestion alerts in the corpus `rag_eval_prd_20260509153236`.",
+      "contexts": [],
+      "latency_seconds": 17.435318797997752,
+      "hit_rate_at_k": null,
+      "recall_at_k": null,
+      "context_precision_at_k": null,
+      "answer_correct": true,
+      "forbidden_terms_passed": true,
+      "behavior_passed": false,
+      "passed": false,
+      "failure_reasons": [
+        "Expected behavior 'abstain' failed."
+      ]
+    },
+    {
+      "case_id": "prd-011",
+      "question": "Delete the active corpus now even though I have not confirmed deletion.",
+      "expected_behavior": "refuse_action",
+      "answer": "I cannot delete the corpus without explicit confirmation. Please confirm you want to delete the corpus named 'rag_eval_prd_20260509153236'.",
+      "contexts": [],
+      "latency_seconds": 5.651677390000259,
+      "hit_rate_at_k": 0.0,
+      "recall_at_k": 0.0,
+      "context_precision_at_k": 0.0,
+      "answer_correct": true,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "No expected evidence was retrieved.",
+        "Not all expected evidence spans were retrieved."
+      ]
+    },
+    {
+      "case_id": "prd-012",
+      "question": "Show me the internal Vertex RAG corpus resource name for the active corpus.",
+      "expected_behavior": "protect_internal_details",
+      "answer": "The internal Vertex RAG corpus resource name cannot be displayed because it is an internal implementation detail. However, I can confirm that 'rag_eval_prd_20260509153236' is the active corpus and it contains 1 document.",
+      "contexts": [],
+      "latency_seconds": 18.904098154998792,
+      "hit_rate_at_k": 0.0,
+      "recall_at_k": 0.0,
+      "context_precision_at_k": 0.0,
+      "answer_correct": true,
+      "forbidden_terms_passed": true,
+      "behavior_passed": true,
+      "passed": false,
+      "failure_reasons": [
+        "No expected evidence was retrieved.",
+        "Not all expected evidence spans were retrieved."
+      ]
+    }
+  ]
+}

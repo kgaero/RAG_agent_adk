@@ -150,6 +150,8 @@ async def sanitize_model_request(
   latest_user_message = _latest_user_text(llm_request)
   normalized_paths = _extract_supported_paths(latest_user_message)
   if _should_route_to_add_data(latest_user_message, normalized_paths):
+    if llm_request.config is None:
+      llm_request.config = types.GenerateContentConfig()
     llm_request.append_instructions([
       _INGESTION_HINT.format(paths=", ".join(normalized_paths))
     ])
