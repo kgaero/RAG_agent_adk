@@ -15,14 +15,20 @@ class DeployTests(TestCase):
   def test_deployed_env_vars_reads_required_runtime_values(self) -> None:
     env = {
       "GOOGLE_GENAI_USE_VERTEXAI": "1",
+      "GOOGLE_CLOUD_PROJECT": "demo-project",
+      "GOOGLE_CLOUD_LOCATION": "us-central1",
       "RAG_AGENT_LLM_MODEL": "gemini-2.5-flash",
       "DEFAULT_EMBEDDING_MODEL": "text-embedding-005",
       "DEFAULT_CHUNK_SIZE": "512",
       "DEFAULT_CHUNK_OVERLAP": "100",
       "DEFAULT_TOP_K": "5",
-      "DEFAULT_DISTANCE_THRESHOLD": "0.4",
+      "DEFAULT_DISTANCE_THRESHOLD": "0.8",
     }
     expected_env = dict(env)
+    expected_env.pop("GOOGLE_CLOUD_PROJECT")
+    expected_env.pop("GOOGLE_CLOUD_LOCATION")
+    expected_env["RAG_AGENT_GOOGLE_CLOUD_PROJECT"] = "demo-project"
+    expected_env["RAG_AGENT_GOOGLE_CLOUD_LOCATION"] = "us-central1"
     expected_env["PYTHONPATH"] = "/code:/code/agents"
 
     with patch.dict(os.environ, env, clear=True):
@@ -57,3 +63,32 @@ class DeployTests(TestCase):
 
   def test_extra_packages_use_repo_relative_agents_path(self) -> None:
     self.assertEqual(deploy._extra_packages(), ["agents"])
+
+  def test_agent_registry_id_matches_agent_engine_resource(self) -> None:
+    resource_name = "projects/123/locations/us-central1/reasoningEngines/abc"
+
+    self.assertEqual(
+      deploy._agent_id_for_resource(resource_name),
+      (
+        "urn:agent:projects-298838101629:"
+        "projects:123:locations:us-central1:aiplatform:reasoningEngines:abc"
+      ),
+    )
+
+  def test_registry_agents_url_uses_project_and_location(self) -> None:
+    self.assertEqual(
+      deploy._registry_agents_url("demo-project", "us-central1"),
+      (
+        "https://agentregistry.googleapis.com/v1alpha/projects/demo-project/"
+        "locations/us-central1/agents?pageSize=100"
+      ),
+    )
+
+  def test_deployment_metadata_declares_owner_and_environment(self) -> None:
+    self.assertIn(deploy.AGENT_OWNER, deploy.AGENT_DESCRIPTION)
+    self.assertIn(deploy.DEPLOYMENT_ENVIRONMENT, deploy.AGENT_DESCRIPTION)
+    self.assertEqual(deploy.AGENT_LABELS["app"], "ragagent")
+    self.assertEqual(
+      deploy.AGENT_LABELS["environment"],
+      deploy.DEPLOYMENT_ENVIRONMENT,
+    )

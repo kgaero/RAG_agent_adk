@@ -1,5 +1,5 @@
-google-adk[database,eval]>=1.10.0,<2.0.0
-google-cloud-aiplatform[adk,agent-engines]>=1.130.0,<2.0.0
+google-adk[eval]>=1.33.0,<2.0.0
+google-cloud-aiplatform[adk,agent-engines]>=1.151.0,<2.0.0
 yfinance
 psutil
 litellm>=1.75.5

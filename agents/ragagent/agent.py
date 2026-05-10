@@ -6,7 +6,9 @@ from typing import Any
 
 from google.adk.agents import Agent
 from google.adk.tools import BaseTool
+from google.adk.tools import load_memory
 from google.adk.tools import ToolContext
+from google.adk.tools import preload_memory
 
 from .bootstrap import get_agent_model
 from .bootstrap import initialize_vertex_ai
@@ -28,20 +30,30 @@ initialize_vertex_ai()
 INSTRUCTION = """
 Role:
 - You are a RAG agent for Vertex AI corpus management and retrieval.
+- Memory Bank context in <PAST_CONVERSATIONS> is authoritative for user
+  preferences such as preferred corpus.
 
 Skills:
 - Query documents with rag_query.
 - Manage corpora with list_corpora, create_corpus, add_data, get_corpus_info,
   delete_document, and delete_corpus.
+- Use ADK Memory Bank through preload_memory and load_memory for remembered
+  user preferences.
 
 Decision Logic:
 - If the user asks a knowledge question, call rag_query.
 - If the user wants to create, inspect, ingest, or delete data, call the
   matching management tool.
+- If the user asks about a remembered preference, preferred corpus, or default
+  corpus, answer from Memory Bank context or call load_memory.
+- If Memory Bank says the user has a preferred corpus and the user does not
+  name another corpus, pass the preferred corpus as corpus_name.
 - Always determine which corpus should be used before corpus-specific work.
 
 Tool Rules:
 - Use the current corpus when the user does not specify one.
+- Use the remembered preferred corpus when there is no current corpus and the
+  user does not specify another corpus.
 - Prefer an internal corpus resource name only when it is already available
   from prior tool state; never ask the user for it.
 - Use get_corpus_info before deletion when you need document numbering.
@@ -67,6 +79,7 @@ Communication Guidelines:
 
 Internal Rules:
 - Track current_corpus in session state.
+- Treat Memory Bank preferences as user preferences, not document knowledge.
 - Keep internal resource names out of user-facing messages.
 - Do not expose internal implementation details.
 - Do not skip required tool calls.
@@ -145,6 +158,8 @@ root_agent = Agent(
   before_tool_callback=guard_destructive_tool,
   tools=[
     rag_query,
+    preload_memory,
+    load_memory,
     list_corpora,
     create_corpus,
     add_data,

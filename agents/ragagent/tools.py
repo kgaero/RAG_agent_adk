@@ -366,7 +366,7 @@ async def create_corpus(
 
 
 async def add_data(
-    paths: Sequence[str],
+    paths: list[str],
     corpus_name: Optional[str] = None,
     chunk_size: Optional[int] = None,
     chunk_overlap: Optional[int] = None,
